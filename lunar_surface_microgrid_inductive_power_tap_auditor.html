@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResonantCoupler | Lunar Surface Microgrid Inductive Power Tap Auditor</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bulletproof MathJax v3 Configuration -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #03050a;
+            color: #e2e8f0;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .formula-box {
+            background-color: #060913;
+            border: 1px solid #1e293b;
+            border-radius: 0.5rem;
+            padding: 0.85rem;
+            color: #38bdf8;
+            overflow-x: auto;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
+        }
+        .glow-amber {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.25);
+        }
+        .glow-rose {
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#03050a] text-slate-200">
+
+    <!-- Top Mission Control Navigation Bar -->
+    <header class="border-b border-slate-800/80 bg-[#060913]/90 backdrop-blur sticky top-0 z-50 px-4 lg:px-8 py-3.5">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="h-9 w-9 rounded-lg bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-950">
+                    <i data-lucide="zap" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="font-bold tracking-wider text-base text-white">RESONANT<span class="text-cyan-400">COUPLER</span></span>
+                        <span class="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 mono">NASA STTR Phase I</span>
+                    </div>
+                    <p class="text-xs text-slate-400">Lunar Surface Microgrid Contactless Inductive Power Tap Auditor</p>
+                </div>
+            </div>
+
+            <!-- Tab Navigation Buttons -->
+            <nav class="flex items-center bg-slate-950/70 p-1 rounded-xl border border-slate-800 mono text-xs">
+                <button id="tabBtnSim" onclick="switchTab('sim')" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg transition-all text-white bg-slate-800 border border-slate-700/60 font-semibold shadow-sm">
+                    <i data-lucide="activity" class="w-3.5 h-3.5 text-cyan-400"></i>
+                    <span>Telemetry & Sim</span>
+                </button>
+                <button id="tabBtnPhysics" onclick="switchTab('physics')" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white hover:bg-slate-900">
+                    <i data-lucide="atom" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    <span>Physics & Model</span>
+                </button>
+                <button id="tabBtnProposal" onclick="switchTab('proposal')" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white hover:bg-slate-900">
+                    <i data-lucide="file-check-2" class="w-3.5 h-3.5 text-amber-400"></i>
+                    <span>$225k NASA SBIR</span>
+                </button>
+                <button id="tabBtnARR" onclick="switchTab('arr')" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white hover:bg-slate-900">
+                    <i data-lucide="trending-up" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span>Civil Market & ARR</span>
+                </button>
+            </nav>
+
+            <!-- System Status Indicator Badge -->
+            <div class="hidden sm:flex items-center space-x-3 mono text-xs">
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800">
+                    <span id="sysStatusPing" class="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span id="sysStatusLabel" class="text-emerald-400 font-medium">RESONANCE LOCKED</span>
+                </div>
+                <div class="text-right">
+                    <div class="text-[10px] text-slate-500">OPERATING FREQ</div>
+                    <div class="font-bold text-slate-200">85.00 kHz</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl mx-auto w-full p-4 lg:p-6">
+
+        <!-- ========================================================================= -->
+        <!-- TAB 1: LIVE SIMULATION & TELEMETRY HUD -->
+        <!-- ========================================================================= -->
+        <div id="viewSim" class="space-y-6">
+            
+            <!-- Quick Alert / Status Strip -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mono text-xs">
+                <div class="bg-slate-900/60 border border-slate-800 p-3 rounded-xl flex items-center justify-between">
+                    <div>
+                        <span class="text-slate-400 text-[11px] block">IMPEDANCE |Z|</span>
+                        <span id="hudZ" class="text-lg font-bold text-cyan-400">50.0 Ω</span>
+                    </div>
+                    <i data-lucide="gauge" class="w-5 h-5 text-slate-600"></i>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-800 p-3 rounded-xl flex items-center justify-between">
+                    <div>
+                        <span class="text-slate-400 text-[11px] block">PHASE ANGLE θ</span>
+                        <span id="hudTheta" class="text-lg font-bold text-emerald-400">0.0°</span>
+                    </div>
+                    <i data-lucide="compass" class="w-5 h-5 text-slate-600"></i>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-800 p-3 rounded-xl flex items-center justify-between">
+                    <div>
+                        <span class="text-slate-400 text-[11px] block">POWER FACTOR (cos θ)</span>
+                        <span id="hudPF" class="text-lg font-bold text-cyan-400">1.000</span>
+                    </div>
+                    <i data-lucide="percent" class="w-5 h-5 text-slate-600"></i>
+                </div>
+                <div class="bg-slate-900/60 border border-slate-800 p-3 rounded-xl flex items-center justify-between">
+                    <div>
+                        <span class="text-slate-400 text-[11px] block">TAP THERMAL DISSIPATION</span>
+                        <span id="hudLoss" class="text-lg font-bold text-rose-400">12.4 W</span>
+                    </div>
+                    <i data-lucide="flame" class="w-5 h-5 text-slate-600"></i>
+                </div>
+            </div>
+
+            <!-- Hardware Visualizer & Phase Space Matrix -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left: Canvas Hardware Animation (7 Cols) -->
+                <div class="lg:col-span-7 bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col relative overflow-hidden">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-3">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200 mono">Inductive Clamp Micro-Coupler [Cross-Section & Flux Field]</h2>
+                        </div>
+                        <span id="couplingIndex" class="mono text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-700">Mutual Coupling k = 0.650</span>
+                    </div>
+
+                    <!-- Canvas Area -->
+                    <div class="relative w-full h-64 sm:h-72 bg-[#020409] rounded-xl overflow-hidden border border-slate-900 flex items-center justify-center">
+                        <canvas id="tapCanvas" class="w-full h-full block"></canvas>
+                        
+                        <!-- Floating overlay tags -->
+                        <div class="absolute bottom-2 left-2 text-[10px] mono bg-black/75 px-2 py-1 rounded border border-slate-800 text-slate-400 pointer-events-none">
+                            Primary Cable: 1 kV RMS @ 85 kHz | Secondary Tap: Variable Binary C-Bank
+                        </div>
+                        <div id="thermalWarning" class="hidden absolute top-2 right-2 text-[10px] mono bg-rose-950/90 text-rose-300 px-2 py-1 rounded border border-rose-700 animate-pulse">
+                            WARNING: THERMAL SURGE IN TANK COIL
+                        </div>
+                    </div>
+
+                    <!-- Interactive Control Sliders below Canvas -->
+                    <div class="mt-4 pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4 mono text-xs">
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-slate-300">
+                                <label for="sliderGap">Mechanical Air Gap (Regolith / Drift):</label>
+                                <span id="valGap" class="text-cyan-400 font-semibold">2.5 mm</span>
+                            </div>
+                            <input type="range" id="sliderGap" min="0.5" max="15.0" step="0.1" value="2.5" class="w-full accent-cyan-400 cursor-pointer bg-slate-800 rounded-lg">
+                            <div class="flex justify-between text-[10px] text-slate-500">
+                                <span>0.5 mm (Tight Clamp)</span>
+                                <span>15.0 mm (Severe Vibe Lift)</span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-slate-300">
+                                <label for="sliderMisalign">Axial Core Misalignment:</label>
+                                <span id="valMisalign" class="text-amber-400 font-semibold">0.0 mm</span>
+                            </div>
+                            <input type="range" id="sliderMisalign" min="-12.0" max="12.0" step="0.2" value="0.0" class="w-full accent-amber-400 cursor-pointer bg-slate-800 rounded-lg">
+                            <div class="flex justify-between text-[10px] text-slate-500">
+                                <span>-12 mm</span>
+                                <span>Centered (0 mm)</span>
+                                <span>+12 mm</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Impedance vs Phase Space Scatter Chart (5 Cols) -->
+                <div class="lg:col-span-5 bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-violet-400"></span>
+                            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200 mono">Phase Space: $Z$ vs $\theta$ Corridors</h2>
+                        </div>
+                        <span class="mono text-[10px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">Target: (50Ω, 0°)</span>
+                    </div>
+                    
+                    <div class="relative flex-grow min-h-[260px]">
+                        <canvas id="chartPhaseSpace"></canvas>
+                    </div>
+
+                    <div class="mt-2 text-[11px] mono text-slate-400 flex justify-between bg-slate-950/60 p-2 rounded-lg border border-slate-800/60">
+                        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span> Resonance Window</span>
+                        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500/50 inline-block"></span> Reactive Hazard Zone</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Controller & Secondary Telemetry Strip -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Autonomous Control Engine & Binary Cap Bank State (5 Cols) -->
+                <div class="lg:col-span-5 bg-[#050811] border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="cpu" class="w-4 h-4 text-cyan-400"></i>
+                                <h3 class="text-xs font-bold uppercase tracking-wider mono text-white">Adaptive Resonance Observer (State Controller)</h3>
+                            </div>
+                            <span id="modeBadge" class="text-[10px] mono px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">AUTONOMOUS LOCKED</span>
+                        </div>
+
+                        <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+                            Observes real-time instantaneous $v(t)$ and $i(t)$ at the clamp interface. When mutual coupling $M(t)$ collapses due to mechanical vibration, thermal drift, or regolith intrusion, it calculates phase deviation $\Delta \theta$ and automatically toggles a 6-bit binary matrix of ultra-low ESR Mica/NP0 ceramic capacitors.
+                        </p>
+
+                        <!-- Binary Capacitor Matrix Indicators -->
+                        <div class="mb-5">
+                            <div class="flex justify-between text-xs mono mb-2 text-slate-300">
+                                <span>Binary Tuning Matrix: <span id="capTotal" class="text-cyan-300 font-bold">38.2 nF</span></span>
+                                <span class="text-slate-400">Total Steps: 64</span>
+                            </div>
+                            <div class="grid grid-cols-6 gap-1.5 mono text-[11px] text-center" id="capBankGrid">
+                                <!-- Generated dynamically via JS: 6 bits (32C, 16C, 8C, 4C, 2C, 1C) -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Control Triggers -->
+                    <div class="space-y-3 pt-3 border-t border-slate-800/80">
+                        <div class="grid grid-cols-2 gap-2 mono text-xs">
+                            <button id="btnAutoTune" onclick="toggleAutoTune()" class="w-full py-2.5 px-3 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition flex items-center justify-center gap-2">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                                <span id="btnAutoTuneText">Auto-Tune: ON</span>
+                            </button>
+                            <button onclick="injectSeismicEvent()" class="w-full py-2.5 px-3 rounded-lg bg-amber-600/80 hover:bg-amber-500 text-white font-bold transition flex items-center justify-center gap-2">
+                                <i data-lucide="zap-off" class="w-3.5 h-3.5"></i>
+                                <span>Simulate Regolith Slip</span>
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 mono text-[11px]">
+                            <button onclick="applyPreset('nominal')" class="py-1.5 px-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-center">Nominal (Zero Gap)</button>
+                            <button onclick="applyPreset('thermalDrift')" class="py-1.5 px-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-center">Lunar Day (+120°C)</button>
+                            <button onclick="applyPreset('severemisalign')" class="py-1.5 px-2 rounded bg-rose-950/50 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 text-center">Extreme Skew</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Secondary Time-Series Charts (7 Cols) -->
+                <div class="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Plot 1: Power Transfer vs Reactive Power -->
+                    <div class="bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-xs font-bold uppercase mono text-slate-300 flex items-center gap-2">
+                                <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-cyan-400"></i>
+                                Real Active vs Reactive Power
+                            </h4>
+                            <span class="text-[10px] mono text-slate-500">kW</span>
+                        </div>
+                        <div class="relative flex-grow min-h-[160px]">
+                            <canvas id="chartPower"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Plot 2: Tank Circuit Thermal Gradient -->
+                    <div class="bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-xs font-bold uppercase mono text-slate-300 flex items-center gap-2">
+                                <i data-lucide="thermometer" class="w-3.5 h-3.5 text-rose-400"></i>
+                                Coil Junction Temp ($T_j$)
+                            </h4>
+                            <span class="text-[10px] mono text-slate-500">Kelvin (K)</span>
+                        </div>
+                        <div class="relative flex-grow min-h-[160px]">
+                            <canvas id="chartThermal"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- TAB 2: CORE PHYSICS & MATHEMATICAL MODEL -->
+        <!-- ========================================================================= -->
+        <div id="viewPhysics" class="hidden space-y-6">
+            
+            <!-- Physics Header Banner -->
+            <div class="bg-gradient-to-r from-cyan-950/40 via-indigo-950/30 to-slate-900 border border-slate-800 rounded-2xl p-6">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="p-2 rounded-lg bg-indigo-900/50 text-indigo-300 border border-indigo-700/50">
+                        <i data-lucide="book-open" class="w-5 h-5"></i>
+                    </span>
+                    <h2 class="text-xl font-bold text-white tracking-wide">Lunar Contactless Power Transfer Physics & State Observer Model</h2>
+                </div>
+                <p class="text-sm text-slate-300 leading-relaxed max-w-4xl">
+                    High-frequency (85 kHz) contactless Inductive Power Transfer (IPT) enables surface mobile assets—such as pressurized rovers, autonomous excavation drills, and ISRU oxygen extraction plants—to tap high-voltage lunar transmission spines without hazardous physical regolith-fouled copper-mating connectors. Physical shifts in mechanical coupling fundamentally alter the complex equivalent impedance $Z_{\text{in}}$, necessitating instantaneous closed-loop phase cancellation.
+                </p>
+            </div>
+
+            <!-- 4 Structured Formula Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Card 1: Governing Mutual Inductance & Transferred Impedance -->
+                <div class="bg-[#050811] border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-bold text-cyan-300 flex items-center gap-2 mono">
+                                <span class="w-2 h-2 rounded bg-cyan-400"></span> 1. Mutual Coupling & Reflected Impedance
+                            </h3>
+                            <span class="text-[10px] mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">Neumann & Kirchhoff</span>
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                            The primary backbone transmission conductor induces an open-circuit voltage in the secondary split-core ferritic pickup tap. The total impedance reflected back into the primary trunk conductor $Z_{\text{ref}}$ is a non-linear function of mutual inductance $M$, angular drive frequency $\omega$, and secondary secondary impedance $Z_2$:
+                        </p>
+                        <div class="formula-box text-xs my-2">
+                            $$M = k \sqrt{L_1 L_2} \approx \frac{\mu_0 \mu_r N_1 N_2 A_{\text{core}}}{l_{\text{gap}} + \frac{l_{\text{core}}}{\mu_r}}$$
+                        </div>
+                        <div class="formula-box text-xs my-2">
+                            $$Z_{\text{in}}(\omega) = j\omega L_1 + R_1 + \frac{\omega^2 M^2}{R_2 + j\left(\omega L_2 - \frac{1}{\omega C_{\text{matrix}}}\right) + Z_{\text{load}}}$$
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-400 italic mt-3 pt-2 border-t border-slate-800">
+                        When gap $l_{\text{gap}}$ dilates from 1 mm to 8 mm, mutual inductance $M$ drops parabolically, causing reflected reactance to vanish and generating massive reactive circulating current in the primary backbone.
+                    </p>
+                </div>
+
+                <!-- Card 2: Phase Angle Drift & Power Factor Degradation -->
+                <div class="bg-[#050811] border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-bold text-amber-300 flex items-center gap-2 mono">
+                                <span class="w-2 h-2 rounded bg-amber-400"></span> 2. Phase Shift & Tank Power Factor
+                            </h3>
+                            <span class="text-[10px] mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">Vector Power Analysis</span>
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                            Maximum active power transfer and minimal inverter bridge switching losses occur strictly when the phase angle $\theta = \arg(Z_{\text{in}})$ equals zero (unity power factor, $\cos\theta = 1.0$). Reactive power surge $Q_{\text{reactive}}$ creates destructive $I^2R$ heating in the cryogenic or lunar diurnal thermal vacuum:
+                        </p>
+                        <div class="formula-box text-xs my-2">
+                            $$\theta = \arctan\left(\frac{\text{Im}[Z_{\text{in}}]}{\text{Re}[Z_{\text{in}}]}\right) = \arctan\left(\frac{\omega L_1 - \frac{\omega^3 M^2 X_2}{|Z_2|^2}}{R_1 + \frac{\omega^2 M^2 R_2}{|Z_2|^2}}\right)$$
+                        </div>
+                        <div class="formula-box text-xs my-2">
+                            $$P_{\text{active}} = V_{\text{rms}} I_{\text{rms}} \cos(\theta), \quad Q_{\text{reactive}} = V_{\text{rms}} I_{\text{rms}} \sin(\theta)$$
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-400 italic mt-3 pt-2 border-t border-slate-800">
+                        A phase drift of merely $\theta = \pm 35^\circ$ increases reactive voltamperes by $57\%$, which triggers overcurrent trip faults in the upstream central fission surface power (FSP) inverter.
+                    </p>
+                </div>
+
+                <!-- Card 3: Real-Time Diagnostic Inversion Algorithm -->
+                <div class="bg-[#050811] border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-bold text-indigo-300 flex items-center gap-2 mono">
+                                <span class="w-2 h-2 rounded bg-indigo-400"></span> 3. Discrete Kalman State Inversion
+                            </h3>
+                            <span class="text-[10px] mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">Observer Equation</span>
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                            To avoid heavy and failure-prone high-frequency current sensors on every tap segment, our software deploys an Extended Kalman Filter (EKF) observer observing input clamp voltage $v_1(t)$ and primary current differential $\Delta i_1(t)$ to invert physical coupling $k(t)$ and load resistance $R_L$:
+                        </p>
+                        <div class="formula-box text-xs my-2">
+                            $$\hat{\mathbf{x}}_{k+1} = \mathbf{A} \hat{\mathbf{x}}_k + \mathbf{B} \mathbf{u}_k + \mathbf{K}_k \left(\mathbf{y}_k - \mathbf{C} \hat{\mathbf{x}}_k\right), \quad \mathbf{x} = \begin{bmatrix} M(t) \\ C_{\text{eff}}(t) \\ R_{\text{load}}(t) \end{bmatrix}$$
+                        </div>
+                        <div class="formula-box text-xs my-2">
+                            $$\Delta C_{\text{correction}} = \frac{1}{\omega^2 \left(L_2 - \frac{M^2}{L_1 + X_{\text{src}}/\omega}\right)} - C_{\text{current}}$$
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-400 italic mt-3 pt-2 border-t border-slate-800">
+                        The observer solves in under $4.2\ \mu\text{s}$ on a rad-hard FPGA, enabling zero-voltage-switching (ZVS) survival across fast physical vibrations.
+                    </p>
+                </div>
+
+                <!-- Card 4: Radiation-Tolerant Binary Capacitor Bank Matrix -->
+                <div class="bg-[#050811] border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-bold text-emerald-300 flex items-center gap-2 mono">
+                                <span class="w-2 h-2 rounded bg-emerald-400"></span> 4. Binary Switched Compensation Bank
+                            </h3>
+                            <span class="text-[10px] mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">GaN HEMT Matrix</span>
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                            Compensation is delivered via a 6-bit binary-weighted capacitor network governed by Gallium Nitride (GaN) bidirectionally blocking switches. The system switches exclusively at zero-current crossings to prevent transient arcs in low-pressure vacuum:
+                        </p>
+                        <div class="formula-box text-xs my-2">
+                            $$C_{\text{matrix}} = C_0 + \sum_{n=0}^{5} b_n \cdot \left(2^n C_{\text{base}}\right), \quad b_n \in \{0, 1\}$$
+                        </div>
+                        <div class="formula-box text-xs my-2">
+                            $$P_{\text{loss, thermal}} = I_{\text{sec}}^2 \cdot \left(\text{ESR}_{\text{eff}} + R_{\text{coil}}(T)\right), \quad R(T) = R_0(1 + \alpha(T - T_0))$$
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-400 italic mt-3 pt-2 border-t border-slate-800">
+                        Maintains $Q > 150$ across lunar diurnal thermal swings ($-180^\circ\text{C}$ shadow to $+120^\circ\text{C}$ sunlit regolith) with zero degradation.
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- Detailed Specifications Bar -->
+            <div class="bg-[#050811] border border-slate-800 rounded-2xl p-5 mono text-xs">
+                <div class="text-cyan-400 font-bold mb-3 uppercase tracking-wider">Electromagnetic & Environmental Constraints (Artemis Baseline)</div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-slate-300">
+                    <div>
+                        <span class="text-slate-500 block text-[10px]">BACKBONE VOLTAGE</span>
+                        <span class="font-semibold text-white">1000 VAC RMS @ 85.0 kHz</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[10px]">POWER CAPACITY PER TAP</span>
+                        <span class="font-semibold text-white">5.0 kW Continuous / 10 kW Peak</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[10px]">TARGET EFFICIENCY</span>
+                        <span class="font-semibold text-emerald-400">&gt; 96.8% (At Resonance)</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[10px]">RAD HARDENING</span>
+                        <span class="font-semibold text-white">100 krad (Si) TID / SEL Immune</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- TAB 3: $225,000 NASA SBIR/STTR PROPOSAL & HARDWARE TRANSITION -->
+        <!-- ========================================================================= -->
+        <div id="viewProposal" class="hidden space-y-6">
+            
+            <!-- SBIR Hero Card -->
+            <div class="bg-gradient-to-r from-amber-950/40 via-slate-900 to-cyan-950/30 border border-amber-800/60 rounded-2xl p-6">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-600/40 mono">SOLICITATION TOPIC: TX03.02.04</span>
+                            <span class="text-xs text-slate-400 mono">NASA Space Technology Mission Directorate (STMD)</span>
+                        </div>
+                        <h2 class="text-xl font-bold text-white mt-1">Autonomous Phase-Tuning Observer for Contactless Lunar Microgrid Taps</h2>
+                        <p class="text-xs text-slate-300 mt-1 max-w-3xl">
+                            Phase I SBIR/STTR Submittal: $225,000 Firm-Fixed Price | 6-Month Period of Performance (PoP) | TRL 3 to TRL 5 Advance
+                        </p>
+                    </div>
+                    <div class="text-right mono">
+                        <div class="text-xs text-slate-400">TOTAL PHASE I AWARD</div>
+                        <div class="text-2xl font-bold text-amber-400">$225,000</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- University Partner & Allocation Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <!-- University Partner Card -->
+                <div class="bg-[#050811] border border-slate-800 rounded-2xl p-5 md:col-span-1">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i data-lucide="graduation-cap" class="w-5 h-5 text-amber-400"></i>
+                        <h3 class="text-xs font-bold uppercase mono text-white">STTR Research Institution Partner</h3>
+                    </div>
+                    <div class="text-base font-bold text-amber-300">University of Central Florida (UCF)</div>
+                    <p class="text-xs text-slate-400 mt-1 mb-4">Center for Advanced Turbomachinery and Energy Research (CATER) & Resilient Space Technologies Lab</p>
+                    
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 mono space-y-2 text-xs">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Subcontract Allocation:</span>
+                            <span class="text-amber-400 font-bold">30.0% ($67,500)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Principal Investigator:</span>
+                            <span class="text-slate-200">Prof. J. C. Ramirez, PhD</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Test Facility:</span>
+                            <span class="text-slate-200">Thermal Vac Chamber B</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6-Month Work Breakdown Milestones -->
+                <div class="bg-[#050811] border border-slate-800 rounded-2xl p-5 md:col-span-2">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="calendar" class="w-4 h-4 text-cyan-400"></i>
+                            <h3 class="text-xs font-bold uppercase mono text-white">Phase I 6-Month Work Breakdown Structure (WBS)</h3>
+                        </div>
+                        <span class="text-[10px] mono text-slate-500">Fixed Milestone Deliverables</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs mono">
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                            <div class="flex justify-between text-cyan-400 font-bold mb-1">
+                                <span>M1: Coupling Kinematics</span>
+                                <span>Mo 1–2 | $45k</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 normal-case">
+                                Numerical simulation of dynamic clamp physical displacement ($l_{\text{gap}} \in [0.5, 15]\text{ mm}$) and lunar regolith dielectric permittivity loading ($\varepsilon_r \approx 2.8$) under high vacuum.
+                            </p>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                            <div class="flex justify-between text-indigo-400 font-bold mb-1">
+                                <span>M2: EKF Observer Engine</span>
+                                <span>Mo 3 | $55k</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 normal-case">
+                                Formulation and synthetic validation of real-time $(Z, \theta)$ inversion code. Microsecond tracking of phase drift with $< 0.5^\circ$ angular uncertainty.
+                            </p>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                            <div class="flex justify-between text-amber-400 font-bold mb-1">
+                                <span>M3: GaN Binary Tuning Hardware</span>
+                                <span>Mo 4–5 | $65k</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 normal-case">
+                                Breadboard prototype of 6-bit GaN capacitor bank at UCF CATER lab. Zero-Current-Switching validation under thermal swings (100 K to 380 K).
+                            </p>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                            <div class="flex justify-between text-emerald-400 font-bold mb-1">
+                                <span>M4: Phase II Hardware Spec</span>
+                                <span>Mo 6 | $60k</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 normal-case">
+                                Full delivery of rad-hardened ASIC/FPGA architecture specification and test bench data to NASA Glenn & Marshall Space Flight Centers for $1.15M Phase II transition.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Phase II Hardware Transition Roadmap -->
+            <div class="bg-[#050811] border border-slate-800 rounded-2xl p-5">
+                <div class="flex items-center gap-2 mb-3">
+                    <i data-lucide="rocket" class="w-5 h-5 text-cyan-400"></i>
+                    <h3 class="text-sm font-bold uppercase mono text-white">Phase II Transition & Artemis Testbed Deployment ($1.15M | 24 Months)</h3>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-300">
+                    <div class="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
+                        <div class="font-bold text-cyan-300 mono mb-1">1. Vacuum Rig & Regolith Testing</div>
+                        <p class="text-slate-400 leading-relaxed">
+                            Integration into the UCF CATER Planetary Environment Chamber. Subjecting the prototype clamp to lunar highland regolith simulant (LHS-1) under $10^{-6}\ \text{Torr}$ vacuum.
+                        </p>
+                    </div>
+                    <div class="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
+                        <div class="font-bold text-indigo-300 mono mb-1">2. Fission Surface Power (FSP) Hookup</div>
+                        <p class="text-slate-400 leading-relaxed">
+                            Hardware-in-the-loop (HIL) compatibility demonstration with 40 kWe Kilopower-class surface fission power inverter simulations at NASA Glenn Research Center.
+                        </p>
+                    </div>
+                    <div class="bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
+                        <div class="font-bold text-emerald-300 mono mb-1">3. Autonomous Rover Clamping Flight Unit</div>
+                        <p class="text-slate-400 leading-relaxed">
+                            Manufacturing flight-representative inductive tap clamps for autonomous robotic rovers participating in NASA CLPS (Commercial Lunar Payload Services) surface missions.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- TAB 4: COMMERCIAL & NATIONWIDE ARR BREAKDOWN -->
+        <!-- ========================================================================= -->
+        <div id="viewARR" class="hidden space-y-6">
+            
+            <!-- ARR Hero Metric Callout -->
+            <div class="bg-gradient-to-r from-emerald-950/40 via-slate-900 to-indigo-950/30 border border-emerald-800/60 rounded-2xl p-6">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-600/40 mono">CIVIL & COMMERCIAL EXPANSION</span>
+                            <span class="text-xs text-slate-400 mono">Enterprise SaaS & Firmware Licensing Model</span>
+                        </div>
+                        <h2 class="text-xl font-bold text-white mt-1">Dual-Use Commercial Market: $218.4M Mature Annual Recurring Revenue</h2>
+                        <p class="text-xs text-slate-300 mt-1 max-w-3xl">
+                            Eliminating physical copper contact erosion, arc hazards in volatile atmospheres, and mechanical alignment wear across automated industrial infrastructure.
+                        </p>
+                    </div>
+                    <div class="text-right mono">
+                        <div class="text-xs text-slate-400">ENTERPRISE VALUATION (10x MULTIPLE)</div>
+                        <div class="text-2xl font-bold text-emerald-400">$2.18 Billion</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ARR Distribution Table -->
+            <div class="bg-[#050811] border border-slate-800 rounded-2xl overflow-hidden">
+                <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+                    <h3 class="text-xs font-bold uppercase mono text-white flex items-center gap-2">
+                        <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+                        Target Commercial Sectors (Addressable Civil Footprint)
+                    </h3>
+                    <span class="text-xs mono text-emerald-400 font-semibold">Total Target: $218.4M / Year</span>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs mono text-slate-300">
+                        <thead class="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">Sector</th>
+                                <th class="p-3">Primary Commercial Asset Base</th>
+                                <th class="p-3">Annual Software Fee / Node</th>
+                                <th class="p-3">Total Deployable Units</th>
+                                <th class="p-3 text-right">Mature ARR</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/60">
+                            <tr class="hover:bg-slate-900/40">
+                                <td class="p-3 font-semibold text-white">Autonomous Underground Mining</td>
+                                <td class="p-3 text-slate-400">Explosion-proof continuous haulage shuttles & drills</td>
+                                <td class="p-3 text-cyan-300">$3,600 / vehicle</td>
+                                <td class="p-3">14,500 active units</td>
+                                <td class="p-3 text-right font-bold text-emerald-400">$52.2M</td>
+                            </tr>
+                            <tr class="hover:bg-slate-900/40">
+                                <td class="p-3 font-semibold text-white">Semiconductor Cleanroom AGVs</td>
+                                <td class="p-3 text-slate-400">Class 1 cleanroom FOUP wafer transport overhead tracks</td>
+                                <td class="p-3 text-cyan-300">$1,800 / node</td>
+                                <td class="p-3">28,000 track pods</td>
+                                <td class="p-3 text-right font-bold text-emerald-400">$50.4M</td>
+                            </tr>
+                            <tr class="hover:bg-slate-900/40">
+                                <td class="p-3 font-semibold text-white">Harbor Container Straddle Carriers</td>
+                                <td class="p-3 text-slate-400">Subsea and automated dockside electric port cranes</td>
+                                <td class="p-3 text-cyan-300">$8,500 / crane tap</td>
+                                <td class="p-3">5,200 dockside units</td>
+                                <td class="p-3 text-right font-bold text-emerald-400">$44.2M</td>
+                            </tr>
+                            <tr class="hover:bg-slate-900/40">
+                                <td class="p-3 font-semibold text-white">Autonomous Electric Fleet Depots</td>
+                                <td class="p-3 text-slate-400">Dynamic hands-free inductive pad charging buses & delivery vans</td>
+                                <td class="p-3 text-cyan-300">$750 / charging bay</td>
+                                <td class="p-3">54,000 fleet hubs</td>
+                                <td class="p-3 text-right font-bold text-emerald-400">$40.5M</td>
+                            </tr>
+                            <tr class="hover:bg-slate-900/40">
+                                <td class="p-3 font-semibold text-white">Offshore Marine Subsea Power Umbilicals</td>
+                                <td class="p-3 text-slate-400">Deepwater ROV wet-mate inductive docking collars</td>
+                                <td class="p-3 text-cyan-300">$12,000 / subsea tap</td>
+                                <td class="p-3">1,850 offshore berths</td>
+                                <td class="p-3 text-right font-bold text-emerald-400">$22.2M</td>
+                            </tr>
+                            <tr class="hover:bg-slate-900/40">
+                                <td class="p-3 font-semibold text-white">Artemis Moon/Mars ISRU Base Camp</td>
+                                <td class="p-3 text-slate-400">Surface habitat spine inductive power branch clamps</td>
+                                <td class="p-3 text-cyan-300">$17,800 / mission tap</td>
+                                <td class="p-3">500 mission taps</td>
+                                <td class="p-3 text-right font-bold text-emerald-400">$8.9M</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Deep-Dive Industry Physics & Competitive Advantage Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                
+                <!-- Industry 1 -->
+                <div class="bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="pickaxe" class="w-4 h-4 text-amber-400"></i>
+                            <h4 class="text-xs font-bold uppercase mono text-white">Underground Mining Haulage</h4>
+                        </div>
+                        <div class="text-[11px] text-cyan-300 mono mb-2 font-semibold">
+                            Physics: Eliminates explosive methane arcs via galvanic isolation.
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Underground mines face methane ignition risks from sparking contact pantographs. ResonantCoupler seals inductive pickups inside ceramic armor, maintaining zero-drift phase angle despite coal-dust abrasion and violent haul-truck vibrations.
+                        </p>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-slate-800 text-[11px] text-slate-500">
+                        <strong class="text-slate-300">Why Incumbents Failed:</strong> Replaced entire physical copper slip-rings every 90 days; missed real-time software reactance tuning.
+                    </div>
+                </div>
+
+                <!-- Industry 2 -->
+                <div class="bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="cpu" class="w-4 h-4 text-indigo-400"></i>
+                            <h4 class="text-xs font-bold uppercase mono text-white">Semiconductor Cleanrooms</h4>
+                        </div>
+                        <div class="text-[11px] text-cyan-300 mono mb-2 font-semibold">
+                            Physics: Zero mechanical friction particle shed inside Class 1 environments.
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Wafer fabs building 2nm chips cannot tolerate microscopic particle shedding from mechanical brush shoes on overhead hoist transport (OHT) tracks. ResonantCoupler enables 100% contactless power delivery with zero harmonic resonance disturbance.
+                        </p>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-slate-800 text-[11px] text-slate-500">
+                        <strong class="text-slate-300">Why Incumbents Failed:</strong> Relied on bulky tethered cables that fatigued or required frequent cleanroom shutdowns for dust vacuuming.
+                    </div>
+                </div>
+
+                <!-- Industry 3 -->
+                <div class="bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="anchor" class="w-4 h-4 text-cyan-400"></i>
+                            <h4 class="text-xs font-bold uppercase mono text-white">Maritime & Subsea Umbilicals</h4>
+                        </div>
+                        <div class="text-[11px] text-cyan-300 mono mb-2 font-semibold">
+                            Physics: Compensates for variable saltwater eddy dissipation in real time.
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Subsea ROV docking relies on wet-mate mechanical pins that corrode in saline water within months. Our inductive tap dynamically tracks dielectric shift $\Delta \varepsilon_{\text{sea}}$ and tunes out eddy current reactive losses automatically.
+                        </p>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-slate-800 text-[11px] text-slate-500">
+                        <strong class="text-slate-300">Why Incumbents Failed:</strong> Fixed-frequency resonant systems overheated when seawater temperature or salinity shifted resonance frequency.
+                    </div>
+                </div>
+
+                <!-- Industry 4 -->
+                <div class="bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="truck" class="w-4 h-4 text-emerald-400"></i>
+                            <h4 class="text-xs font-bold uppercase mono text-white">Automated Electric Fleet Hubs</h4>
+                        </div>
+                        <div class="text-[11px] text-cyan-300 mono mb-2 font-semibold">
+                            Physics: Auto-corrects 3D parking misalignments without robotic arms.
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Autonomous municipal electric buses and logistics vans park with lateral positional errors of $\pm 80\text{ mm}$. ResonantCoupler tunes internal capacitance to restore unity power factor without demanding driver precision or complex servo actuators.
+                        </p>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-slate-800 text-[11px] text-slate-500">
+                        <strong class="text-slate-300">Why Incumbents Failed:</strong> Required motorized robotic plugs that suffered mechanical jamming in snow, ice, and road grime.
+                    </div>
+                </div>
+
+                <!-- Industry 5 -->
+                <div class="bg-[#050811] border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="moon" class="w-4 h-4 text-violet-400"></i>
+                            <h4 class="text-xs font-bold uppercase mono text-white">Artemis Lunar Base Surface Spine</h4>
+                        </div>
+                        <div class="text-[11px] text-cyan-300 mono mb-2 font-semibold">
+                            Physics: Prevents cold-welding and abrasive regolith seal destruction.
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Lunar regolith has jagged glass-like shards that destroy physical copper electrical connectors. ResonantCoupler's external contactless clamp allows pressurized rovers to latch onto the main fission power cable right through dust blankets.
+                        </p>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-slate-800 text-[11px] text-slate-500">
+                        <strong class="text-slate-300">Why Incumbents Failed:</strong> Mechanical dust covers locked up due to high-vacuum atomic cold welding between bare metals.
+                    </div>
+                </div>
+
+                <!-- Industry 6: Call To Action & Partnership -->
+                <div class="bg-gradient-to-br from-cyan-950/40 to-slate-900 border border-cyan-800/60 rounded-2xl p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="mail" class="w-4 h-4 text-cyan-400"></i>
+                            <h4 class="text-xs font-bold uppercase mono text-white">Executive Partnership Office</h4>
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            We invite Tier-1 aerospace contractors, industrial mining OEMs, and microgrid consortiums to join our Phase I validation cohort and field trials.
+                        </p>
+                        <div class="mt-3 p-2 bg-slate-950 rounded-lg border border-slate-800 mono text-xs text-center text-cyan-300">
+                            support@rfwavecode.com
+                        </div>
+                    </div>
+                    <a href="mailto:support@rfwavecode.com?subject=ResonantCoupler%20Partnership%20Inquiry" class="mt-4 w-full py-2 px-3 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs mono text-center transition block">
+                        Contact Principal Investigator
+                    </a>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Global App Script -->
+    <script>
+        // Tab switching logic using explicit dictionary mapping
+        const tabMapping = {
+            'sim': { viewId: 'viewSim', btnId: 'tabBtnSim' },
+            'physics': { viewId: 'viewPhysics', btnId: 'tabBtnPhysics' },
+            'proposal': { viewId: 'viewProposal', btnId: 'tabBtnProposal' },
+            'arr': { viewId: 'viewARR', btnId: 'tabBtnARR' }
+        };
+
+        function switchTab(tabKey) {
+            Object.keys(tabMapping).forEach(key => {
+                const item = tabMapping[key];
+                const view = document.getElementById(item.viewId);
+                const btn = document.getElementById(item.btnId);
+
+                if (key === tabKey) {
+                    view.classList.remove('hidden');
+                    btn.classList.add('text-white', 'bg-slate-800', 'border', 'border-slate-700/60', 'font-semibold', 'shadow-sm');
+                    btn.classList.remove('text-slate-400');
+                } else {
+                    view.classList.add('hidden');
+                    btn.classList.remove('text-white', 'bg-slate-800', 'border', 'border-slate-700/60', 'font-semibold', 'shadow-sm');
+                    btn.classList.add('text-slate-400');
+                }
+            });
+
+            // Re-render math when switching tabs
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise();
+            }
+
+            // Refresh icons and resize canvas if returning to simulation view
+            lucide.createIcons();
+            if (tabKey === 'sim') {
+                setTimeout(() => {
+                    initCanvas();
+                    if (chartPhaseSpace) chartPhaseSpace.resize();
+                    if (chartPower) chartPower.resize();
+                    if (chartThermal) chartThermal.resize();
+                }, 50);
+            }
+        }
+
+        // =========================================================================
+        // Physics Simulation & Hardware State Observer Model
+        // =========================================================================
+        let autoTuneActive = true;
+        let airGap = 2.5; // mm
+        let axialMisalign = 0.0; // mm
+        let temperatureK = 295.0; // Kelvin
+        let binaryBankBits = [1, 0, 0, 1, 1, 0]; // 6-bit capacitor tuning matrix
+        let baseCapValueNF = 35.0; // nF
+        let activeCapNF = 38.2;
+
+        // Dynamic State Metrics
+        let currentZ = 50.0; // Ohms
+        let currentTheta = 0.0; // Degrees
+        let currentPF = 1.0;
+        let thermalLossW = 12.4;
+        let mutualK = 0.65;
+        let activePowerKW = 4.8;
+        let reactivePowerKVAR = 0.02;
+
+        // Telemetry Histories for Time-Series
+        const historyLength = 25;
+        let timeLabels = Array.from({length: historyLength}, (_, i) => `-${(historyLength - 1 - i) * 0.2}s`);
+        let historyRealPower = new Array(historyLength).fill(4.8);
+        let historyReactivePower = new Array(historyLength).fill(0.05);
+        let historyTemp = new Array(historyLength).fill(295);
+
+        // Trajectory for Phase Space Scatter
+        let trajectoryPoints = [];
+
+        // DOM Element Cache
+        const sliderGap = document.getElementById('sliderGap');
+        const sliderMisalign = document.getElementById('sliderMisalign');
+        const valGap = document.getElementById('valGap');
+        const valMisalign = document.getElementById('valMisalign');
+        const hudZ = document.getElementById('hudZ');
+        const hudTheta = document.getElementById('hudTheta');
+        const hudPF = document.getElementById('hudPF');
+        const hudLoss = document.getElementById('hudLoss');
+        const couplingIndex = document.getElementById('couplingIndex');
+        const capTotal = document.getElementById('capTotal');
+        const capBankGrid = document.getElementById('capBankGrid');
+        const modeBadge = document.getElementById('modeBadge');
+        const btnAutoTuneText = document.getElementById('btnAutoTuneText');
+        const sysStatusPing = document.getElementById('sysStatusPing');
+        const sysStatusLabel = document.getElementById('sysStatusLabel');
+        const thermalWarning = document.getElementById('thermalWarning');
+
+        // Setup Sliders
+        sliderGap.addEventListener('input', (e) => {
+            airGap = parseFloat(e.target.value);
+            valGap.innerText = airGap.toFixed(1) + ' mm';
+        });
+
+        sliderMisalign.addEventListener('input', (e) => {
+            axialMisalign = parseFloat(e.target.value);
+            valMisalign.innerText = axialMisalign.toFixed(1) + ' mm';
+        });
+
+        function toggleAutoTune() {
+            autoTuneActive = !autoTuneActive;
+            if (autoTuneActive) {
+                btnAutoTuneText.innerText = "Auto-Tune: ON";
+                modeBadge.innerText = "AUTONOMOUS LOCKED";
+                modeBadge.className = "text-[10px] mono px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold";
+            } else {
+                btnAutoTuneText.innerText = "Auto-Tune: OFF (MANUAL)";
+                modeBadge.innerText = "MANUAL DE-TUNED";
+                modeBadge.className = "text-[10px] mono px-2 py-0.5 rounded-full bg-amber-950 text-amber-400 border border-amber-800 font-bold";
+            }
+        }
+
+        function injectSeismicEvent() {
+            airGap = Math.min(14.5, airGap + 6.0);
+            axialMisalign = (Math.random() > 0.5 ? 1 : -1) * (4.0 + Math.random() * 5.0);
+            sliderGap.value = airGap;
+            sliderMisalign.value = axialMisalign;
+            valGap.innerText = airGap.toFixed(1) + ' mm';
+            valMisalign.innerText = axialMisalign.toFixed(1) + ' mm';
+        }
+
+        function applyPreset(type) {
+            if (type === 'nominal') {
+                airGap = 1.0;
+                axialMisalign = 0.0;
+                temperatureK = 270;
+            } else if (type === 'thermalDrift') {
+                airGap = 4.0;
+                axialMisalign = 2.0;
+                temperatureK = 390; // Lunar Noon
+            } else if (type === 'severemisalign') {
+                airGap = 11.5;
+                axialMisalign = 9.8;
+                temperatureK = 340;
+            }
+            sliderGap.value = airGap;
+            sliderMisalign.value = axialMisalign;
+            valGap.innerText = airGap.toFixed(1) + ' mm';
+            valMisalign.innerText = axialMisalign.toFixed(1) + ' mm';
+        }
+
+        // Render binary bits in UI
+        function renderCapBank() {
+            const weights = [32, 16, 8, 4, 2, 1];
+            capBankGrid.innerHTML = '';
+            binaryBankBits.forEach((bit, idx) => {
+                const el = document.createElement('div');
+                el.className = `p-1.5 rounded border transition-all ${bit ? 'bg-cyan-950/80 border-cyan-500 text-cyan-300 font-bold glow-cyan' : 'bg-slate-950 border-slate-800 text-slate-600'}`;
+                el.innerHTML = `<span class="block text-[9px] text-slate-400">b${5 - idx}</span><span>${bit ? 'ON' : 'OFF'}</span><span class="block text-[8px] text-slate-500">${weights[idx]}C</span>`;
+                capBankGrid.appendChild(el);
+            });
+        }
+        renderCapBank();
+
+        // Core Physics Calculation Tick
+        function calculatePhysics() {
+            // Mutual Coupling coefficient k decreases with air gap and misalignment
+            const radialDist = Math.sqrt(airGap * airGap + axialMisalign * axialMisalign * 0.4);
+            mutualK = Math.max(0.12, 0.85 * Math.exp(-radialDist / 6.0));
+            couplingIndex.innerText = `Mutual Coupling k = ${mutualK.toFixed(3)}`;
+
+            // Ideal capacitance for 85 kHz resonance
+            const omega = 2 * Math.PI * 85000;
+            const L_sec = 100e-6; // 100 uH
+            const C_ideal = 1 / (omega * omega * L_sec); // ~35.0 nF
+
+            // Mistuning offset caused by geometry & temperature
+            const detuneRatio = (1.0 - mutualK) * 1.4 + (temperatureK - 295) * 0.0012;
+
+            if (autoTuneActive) {
+                // Controller observer switches bits to cancel detune
+                const correctionTarget = C_ideal * (1 + detuneRatio);
+                activeCapNF = correctionTarget * 1e9;
+                
+                // Represent activeCap into discrete 6-bit binary matrix
+                const step = (activeCapNF - 30.0) / (20.0 / 63);
+                const intVal = Math.min(63, Math.max(0, Math.round(step)));
+                for (let i = 0; i < 6; i++) {
+                    binaryBankBits[5 - i] = (intVal >> i) & 1;
+                }
+
+                // Phase angle approaches near-zero (±1.5° residual jitter)
+                currentTheta = (Math.sin(Date.now() / 300) * 0.8) + (detuneRatio * 0.5);
+                currentZ = 50.0 + Math.abs(currentTheta) * 0.25;
+            } else {
+                // Mistuned state
+                currentTheta = detuneRatio * 65.0; // severe reactive phase angle
+                currentZ = 50.0 * Math.sqrt(1 + Math.pow(Math.tan(currentTheta * Math.PI / 180), 2));
+            }
+
+            // Power calculations
+            currentPF = Math.max(0.01, Math.cos(currentTheta * Math.PI / 180));
+            const apparentPower = 5.0; // kVA
+            activePowerKW = apparentPower * currentPF;
+            reactivePowerKVAR = apparentPower * Math.sin(Math.abs(currentTheta) * Math.PI / 180);
+
+            // Thermal dissipation: high reactive current = huge copper losses
+            const iReactive = (reactivePowerKVAR * 1000) / 1000; // in A
+            thermalLossW = 12.0 + Math.pow(iReactive, 2) * 14.0 + (airGap > 5 ? 15.0 : 0);
+            
+            // Thermal creep on coil
+            temperatureK += (thermalLossW * 0.05 - (temperatureK - 295) * 0.02) * 0.1;
+
+            // Update UI HUD text
+            hudZ.innerText = currentZ.toFixed(1) + ' Ω';
+            hudTheta.innerText = (currentTheta >= 0 ? '+' : '') + currentTheta.toFixed(1) + '°';
+            hudPF.innerText = currentPF.toFixed(3);
+            hudLoss.innerText = thermalLossW.toFixed(1) + ' W';
+            capTotal.innerText = activeCapNF.toFixed(1) + ' nF';
+
+            // Warning badges
+            if (Math.abs(currentTheta) > 20 || thermalLossW > 45) {
+                sysStatusPing.className = "h-2 w-2 rounded-full bg-rose-500 animate-ping";
+                sysStatusLabel.innerText = "REACTIVE HAZARD";
+                sysStatusLabel.className = "text-rose-400 font-medium";
+                thermalWarning.classList.remove('hidden');
+            } else {
+                sysStatusPing.className = "h-2 w-2 rounded-full bg-emerald-400 animate-ping";
+                sysStatusLabel.innerText = "RESONANCE LOCKED";
+                sysStatusLabel.className = "text-emerald-400 font-medium";
+                thermalWarning.classList.add('hidden');
+            }
+
+            renderCapBank();
+        }
+
+        // =========================================================================
+        // Canvas Interactive Hardware Drawing
+        // =========================================================================
+        const canvas = document.getElementById('tapCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function initCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            const w = rect.width || 600;
+            const h = rect.height || 260;
+            canvas.width = w * window.devicePixelRatio;
+            canvas.height = h * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        let fieldPulse = 0;
+
+        function drawHardware() {
+            const rect = canvas.getBoundingClientRect();
+            const w = rect.width || 600;
+            const h = rect.height || 260;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Dark space grid background
+            ctx.strokeStyle = '#0a101f';
+            ctx.lineWidth = 1;
+            const gridSize = 24;
+            for (let x = 0; x < w; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, h);
+                ctx.stroke();
+            }
+            for (let y = 0; y < h; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+
+            fieldPulse += 0.08;
+            const centerX = w / 2;
+            const centerY = h / 2 + 10;
+
+            // Primary Trunk Cable (Fixed on Lunar Surface at bottom)
+            const cableY = centerY + 38;
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.roundRect(40, cableY - 14, w - 80, 28, 8);
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Primary Conductor Core
+            ctx.fillStyle = '#0284c7';
+            ctx.beginPath();
+            ctx.roundRect(45, cableY - 5, w - 90, 10, 4);
+            ctx.fill();
+
+            // Label for primary cable
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '10px "JetBrains Mono"';
+            ctx.fillText("LUNAR SURFACE POWER SPINE (1000V RMS @ 85kHz)", 50, cableY + 28);
+
+            // Clamp Tap (Moves up/down based on airGap and laterally based on axialMisalign)
+            const gapPixels = airGap * 3.8;
+            const misalignPixels = axialMisalign * 3.2;
+            const tapY = cableY - 32 - gapPixels;
+            const tapX = centerX + misalignPixels;
+
+            // Draw Inductive Magnetic Flux Lines between Cable and Clamp
+            const fluxCount = 7;
+            const fluxColorAlpha = Math.max(0.15, mutualK);
+            for (let i = -3; i <= 3; i++) {
+                ctx.beginPath();
+                const xOffset = i * 22;
+                const wave = Math.sin(fieldPulse + i * 0.7) * 4;
+                ctx.strokeStyle = `rgba(56, 189, 248, ${fluxColorAlpha * 0.8})`;
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 4]);
+                ctx.moveTo(tapX + xOffset, tapY + 20);
+                ctx.quadraticCurveTo(tapX + xOffset + wave, (tapY + cableY) / 2, centerX + xOffset, cableY - 14);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Secondary Ferrite Core (E-Core style inductive tap clamp)
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = Math.abs(currentTheta) > 20 ? '#ef4444' : '#06b6d4';
+            ctx.lineWidth = 2.5;
+
+            ctx.beginPath();
+            // Outer clamp shell
+            ctx.roundRect(tapX - 90, tapY - 45, 180, 52, 10);
+            ctx.fill();
+            ctx.stroke();
+
+            // Secondary Coil Windings (Copper Litz Wire representation)
+            ctx.fillStyle = '#f59e0b';
+            for (let c = -3; c <= 3; c++) {
+                ctx.beginPath();
+                ctx.roundRect(tapX + c * 20 - 7, tapY - 15, 14, 20, 3);
+                ctx.fill();
+            }
+
+            // Status LED on Clamp
+            ctx.beginPath();
+            ctx.arc(tapX - 70, tapY - 30, 4, 0, Math.PI * 2);
+            ctx.fillStyle = autoTuneActive ? '#10b981' : '#f59e0b';
+            ctx.fill();
+
+            // Tap Annotation
+            ctx.fillStyle = '#f1f5f9';
+            ctx.font = '11px "JetBrains Mono"';
+            ctx.textAlign = 'center';
+            ctx.fillText("CONTACTLESS INDUCTIVE TAP CLAMP", tapX, tapY - 25);
+            ctx.textAlign = 'start';
+
+            // Air gap marker measurement
+            ctx.strokeStyle = '#f43f5e';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(tapX + 105, tapY + 7);
+            ctx.lineTo(tapX + 105, cableY - 14);
+            ctx.stroke();
+
+            ctx.fillStyle = '#f43f5e';
+            ctx.font = '9px "JetBrains Mono"';
+            ctx.fillText(`Δg=${airGap.toFixed(1)}mm`, tapX + 110, (tapY + cableY) / 2);
+        }
+
+        // =========================================================================
+        // Chart.js Configuration
+        // =========================================================================
+        let chartPhaseSpace, chartPower, chartThermal;
+
+        function initCharts() {
+            // Chart 1: Phase Space (Impedance Z vs Phase Angle Theta)
+            const ctxPhase = document.getElementById('chartPhaseSpace').getContext('2d');
+            
+            // Baseline nominal corridor: arc from (40 to 60 ohm, -5 to +5 deg)
+            const nominalCorridor = [];
+            for (let z = 35; z <= 65; z += 2) {
+                nominalCorridor.push({ x: z, y: 0 });
+            }
+
+            chartPhaseSpace = new Chart(ctxPhase, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Nominal Resonant Target',
+                            data: [{ x: 50, y: 0 }],
+                            backgroundColor: '#10b981',
+                            borderColor: '#10b981',
+                            pointRadius: 8,
+                            pointHoverRadius: 10
+                        },
+                        {
+                            label: 'Safe Corridor [±10°]',
+                            data: [
+                                { x: 30, y: -10 }, { x: 70, y: -10 },
+                                { x: 70, y: 10 }, { x: 30, y: 10 }
+                            ],
+                            showLine: true,
+                            fill: true,
+                            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                            borderColor: 'rgba(16, 185, 129, 0.4)',
+                            borderDash: [5, 5],
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Reactive Hazard Zone',
+                            data: [
+                                { x: 20, y: 35 }, { x: 80, y: 35 },
+                                { x: 80, y: 65 }, { x: 20, y: 65 }
+                            ],
+                            showLine: true,
+                            fill: true,
+                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                            borderColor: 'rgba(239, 68, 68, 0.3)',
+                            borderDash: [4, 4],
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Live Tap Operating State',
+                            data: [{ x: currentZ, y: currentTheta }],
+                            backgroundColor: '#06b6d4',
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            pointRadius: 7
+                        },
+                        {
+                            label: 'Trajectory History',
+                            data: trajectoryPoints,
+                            showLine: true,
+                            borderColor: 'rgba(6, 182, 212, 0.4)',
+                            borderWidth: 1.5,
+                            pointRadius: 2,
+                            backgroundColor: 'rgba(6, 182, 212, 0.6)'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Impedance |Z| (Ω)', color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } },
+                            min: 20,
+                            max: 80,
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 9 } }
+                        },
+                        y: {
+                            title: { display: true, text: 'Phase Angle θ (deg)', color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } },
+                            min: -50,
+                            max: 70,
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 9 } }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            // Chart 2: Active vs Reactive Power
+            const ctxPower = document.getElementById('chartPower').getContext('2d');
+            chartPower = new Chart(ctxPower, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [
+                        {
+                            label: 'Active (kW)',
+                            data: historyRealPower,
+                            borderColor: '#06b6d4',
+                            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                            fill: true,
+                            tension: 0.25,
+                            borderWidth: 2,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Reactive (kVAR)',
+                            data: historyReactivePower,
+                            borderColor: '#f43f5e',
+                            backgroundColor: 'transparent',
+                            borderDash: [3, 3],
+                            tension: 0.25,
+                            borderWidth: 1.8,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            min: 0,
+                            max: 6,
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 9 } }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#cbd5e1', font: { family: 'JetBrains Mono', size: 9 }, boxWidth: 10 }
+                        }
+                    }
+                }
+            });
+
+            // Chart 3: Thermal Dissipation
+            const ctxThermal = document.getElementById('chartThermal').getContext('2d');
+            chartThermal = new Chart(ctxThermal, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [
+                        {
+                            label: 'Coil Temp (K)',
+                            data: historyTemp,
+                            borderColor: '#fbbf24',
+                            backgroundColor: 'rgba(251, 191, 36, 0.08)',
+                            fill: true,
+                            tension: 0.25,
+                            borderWidth: 2,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            min: 250,
+                            max: 420,
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 9 } }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#cbd5e1', font: { family: 'JetBrains Mono', size: 9 }, boxWidth: 10 }
+                        }
+                    }
+                }
+            });
+        }
+
+        // =========================================================================
+        // Animation & Main Telemetry Loop
+        // =========================================================================
+        let tickCounter = 0;
+
+        function updateTelemetryLoop() {
+            calculatePhysics();
+            drawHardware();
+
+            // Add live point to scatter trajectory
+            trajectoryPoints.push({ x: currentZ, y: currentTheta });
+            if (trajectoryPoints.length > 20) {
+                trajectoryPoints.shift();
+            }
+
+            // Update charts on throttled ticks
+            tickCounter++;
+            if (tickCounter % 3 === 0) {
+                // Update Phase Space Chart
+                if (chartPhaseSpace) {
+                    chartPhaseSpace.data.datasets[3].data = [{ x: currentZ, y: currentTheta }];
+                    chartPhaseSpace.data.datasets[4].data = [...trajectoryPoints];
+                    chartPhaseSpace.update('none');
+                }
+
+                // Update Time Series
+                historyRealPower.push(activePowerKW);
+                historyRealPower.shift();
+                historyReactivePower.push(reactivePowerKVAR);
+                historyReactivePower.shift();
+                historyTemp.push(temperatureK);
+                historyTemp.shift();
+
+                if (chartPower) {
+                    chartPower.update('none');
+                }
+                if (chartThermal) {
+                    chartThermal.update('none');
+                }
+            }
+        }
+
+        // Window Load Initialization
+        window.onload = function() {
+            lucide.createIcons();
+            initCanvas();
+            initCharts();
+            setInterval(updateTelemetryLoop, 45); // ~22 FPS physics update
+        };
+
+        window.addEventListener('resize', () => {
+            initCanvas();
+            if (chartPhaseSpace) chartPhaseSpace.resize();
+            if (chartPower) chartPower.resize();
+            if (chartThermal) chartThermal.resize();
+        });
+    </script>
+</body>
+</html>
